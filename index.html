@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>TradeLog Pro - Trading Journal</title>
+    <!-- Chart.js y FullCalendar -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <style>
+        /* RESET COMPLETO - Sin márgenes ni fondos no deseados */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            background: #0A0F1F;  /* Fondo único en toda la pantalla */
+            color: #E2E8F0;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Eliminamos cualquier fondo blanco de elementos internos */
+        .card, .stat-card, .fc, input, select, button, .table-wrapper, .chart-container {
+            background-color: transparent;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 12px;
+        }
+
+        /* Tarjetas con vidrio oscuro - sin posibilidad de fondo blanco */
+        .card {
+            background: rgba(17, 24, 39, 0.9);
+            backdrop-filter: blur(8px);
+            border-radius: 28px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            background: linear-gradient(135deg, #38BDF8, #A78BFA);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            margin-bottom: 0.8rem;
+            border-left: 4px solid #38BDF8;
+            padding-left: 12px;
+        }
+
+        /* Formulario en una sola columna en móvil para mejor control */
+        .form-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #94A3B8;
+            letter-spacing: 0.5px;
+        }
+
+        input, select {
+            background: #0F172A;
+            border: 1px solid #2D3A5E;
+            padding: 12px 14px;
+            border-radius: 30px;
+            color: white;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        button {
+            background: #2563EB;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 40px;
+            font-weight: bold;
+            color: white;
+            font-size: 0.9rem;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        button:active { transform: scale(0.97); }
+
+        .btn-secondary { background: #334155; }
+        .btn-danger { background: #DC2626; }
+        .btn-outline { background: transparent; border: 1px solid #38BDF8; color: #38BDF8; }
+
+        /* Estadísticas */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: #0F172A;
+            border-radius: 20px;
+            padding: 10px;
+            text-align: center;
+            border-bottom: 2px solid #38BDF8;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .profit { color: #10B981; }
+        .loss { color: #F97316; }
+
+        /* Tabla responsiva */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+        }
+
+        th, td {
+            padding: 10px 6px;
+            text-align: left;
+            border-bottom: 1px solid #1E293B;
+        }
+
+        th {
+            background: #0F172A;
+            color: #94A3B8;
+        }
+
+        /* Calendario */
+        #calendar {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 20px;
+            padding: 8px;
+        }
+        .fc {
+            background: transparent;
+            color: #E2E8F0;
+        }
+        .fc-theme-standard td, .fc-theme-standard th {
+            border-color: #2D3A5E;
+        }
+        .fc-daygrid-day-number {
+            color: #CBD5E1;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #1E293B;
+            padding: 12px;
+            border-radius: 40px;
+            text-align: center;
+            z-index: 999;
+            border-left: 4px solid #10B981;
+        }
+
+        /* Botones de acción en tabla */
+        .edit-btn, .delete-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            padding: 4px 8px;
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Cabecera -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <h1>📈 TradeLog Pro</h1>
+            <div style="display: flex; gap: 6px;">
+                <button id="darkModeToggle" class="btn-outline" style="width: auto; padding: 8px 12px;">🌙</button>
+                <button id="importCsvBtn" class="btn-secondary" style="width: auto; padding: 8px 12px;">📂</button>
+                <input type="file" id="csvFileInput" accept=".csv" style="display:none">
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <span class="badge" style="background:#0F172A; padding:4px 12px; border-radius:30px;">🟢 Mercado activo</span>
+            <span class="badge" style="background:#0F172A; padding:4px 12px; border-radius:30px;">📊 Backtesting</span>
+        </div>
+    </div>
+
+    <!-- Formulario compacto -->
+    <div class="card">
+        <h2>➕ Nueva Operación</h2>
+        <div class="form-grid">
+            <div class="input-group"><label>📅 Fecha</label><input type="date" id="fecha"></div>
+            <div class="input-group"><label>📌 Activo</label><input type="text" id="activo" placeholder="XAUUSD" value="XAUUSD"></div>
+            <div class="input-group"><label>🔄 Tipo</label><select id="tipoActivo"><option value="forex">Forex (pips)</option><option value="accion">Acción/Crypto</option></select></div>
+            <div class="input-group"><label>🔽 Dirección</label><select id="direccion"><option value="LONG">📈 LONG</option><option value="SHORT">📉 SHORT</option></select></div>
+            <div class="input-group"><label>💰 Entrada</label><input type="number" step="any" id="precioEntrada" placeholder="Precio"></div>
+            <div class="input-group"><label>💸 Salida</label><input type="number" step="any" id="precioSalida" placeholder="Precio"></div>
+            <div class="input-group"><label>📊 Tamaño</label><input type="number" step="any" id="tamano" value="0.1"></div>
+            <div class="input-group"><label>🪙 Comisión USD</label><input type="number" step="any" id="comision" value="0"></div>
+            <div class="input-group"><label>📝 Notas</label><input type="text" id="notas" placeholder="Opcional"></div>
+            <button id="btnAgregar" class="btn-primary">✓ Guardar trade</button>
+        </div>
+    </div>
+
+    <!-- Calendario -->
+    <div class="card">
+        <h2>📅 Calendario</h2>
+        <div id="calendar"></div>
+        <button id="clearFilterBtn" class="btn-secondary" style="margin-top: 12px;">🗓️ Mostrar todos</button>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="card">
+        <h2>📊 Estadísticas</h2>
+        <div class="stats-grid">
+            <div class="stat-card">Ops: <span id="totalOps" class="stat-number">0</span></div>
+            <div class="stat-card">Win: <span id="winRate" class="stat-number">0%</span></div>
+            <div class="stat-card">Profit: <span id="profitTotal" class="stat-number">$0</span></div>
+            <div class="stat-card">Sharpe: <span id="sharpeRatio" class="stat-number">0</span></div>
+        </div>
+        <div class="chart-container">
+            <canvas id="equityChart" height="150" style="width:100%; max-height:180px;"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabla de historial -->
+    <div class="card">
+        <h2>📋 Historial</h2>
+        <div class="table-wrapper">
+            <table id="tablaOperaciones">
+                <thead><tr><th>Fecha</th><th>Activo</th><th>Dir</th><th>Entrada</th><th>Salida</th><th>Resultado</th><th>Acciones</th></tr></thead>
+                <tbody id="tbodyOperaciones"><tr><td colspan="7">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button id="btnExportarCSV" class="btn-secondary">📎 Exportar CSV</button>
+            <button id="btnBorrarTodo" class="btn-danger">🗑️ Reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ---------- LÓGICA COMPLETA (mismo motor que antes pero más limpio) ----------
+    let operaciones = [];
+    let equityChart = null;
+    let calendar = null;
+    let currentFilterDate = null;
+
+    function showToast(msg, error=false) {
+        let t = document.createElement('div');
+        t.className = 'toast';
+        t.textContent = msg;
+        t.style.borderLeftColor = error ? '#DC2626' : '#10B981';
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+
+    function guardar() { localStorage.setItem("tradelog_pro", JSON.stringify(operaciones)); }
+    function cargar() {
+        let data = localStorage.getItem("tradelog_pro");
+        if(data) operaciones = JSON.parse(data);
+        else {
+            operaciones = [
+                { id: Date.now()+1, fecha: "2026-06-15", activo: "XAUUSD", tipoActivo: "forex", direccion: "LONG", precioEntrada: 2320.5, precioSalida: 2345.8, tamano: 0.2, comision: 3, notas: "Oro" },
+                { id: Date.now()+2, fecha: "2026-06-14", activo: "EURUSD", tipoActivo: "forex", direccion: "SHORT", precioEntrada: 1.0850, precioSalida: 1.0820, tamano: 0.3, comision: 2, notas: "" }
+            ];
+            guardar();
+        }
+        renderizarTodo();
+        actualizarCalendario();
+    }
+
+    function calcularPnL(op) {
+        let diff = (op.direccion === "LONG") ? (op.precioSalida - op.precioEntrada) : (op.precioEntrada - op.precioSalida);
+        let bruto;
+        if(op.tipoActivo === "forex") {
+            let pips = diff / 0.0001;
+            bruto = pips * (op.tamano * 10);
+        } else {
+            bruto = diff * op.tamano;
+        }
+        return bruto - (op.comision || 0);
+    }
+
+    function equityCurve() {
+        let curve = [], acc = 0;
+        for(let op of operaciones) { acc += calcularPnL(op); curve.push({ fecha: op.fecha, equity: acc }); }
+        return curve;
+    }
+
+    function actualizarStats() {
+        let total = operaciones.length;
+        let wins = 0, totalProfit = 0, returns = [];
+        for(let op of operaciones) {
+            let pnl = calcularPnL(op);
+            totalProfit += pnl;
+            returns.push(pnl);
+            if(pnl>0) wins++;
+        }
+        let winRate = total===0?0:(wins/total)*100;
+        document.getElementById("totalOps").innerText = total;
+        document.getElementById("winRate").innerText = winRate.toFixed(0)+"%";
+        let profitSpan = document.getElementById("profitTotal");
+        profitSpan.innerHTML = (totalProfit>=0?"+$":"-$") + Math.abs(totalProfit).toFixed(2);
+        profitSpan.style.color = totalProfit>=0?"#10B981":"#F97316";
+        let avg = returns.reduce((a,b)=>a+b,0)/(returns.length||1);
+        let std = Math.sqrt(returns.reduce((a,b)=>a+Math.pow(b-avg,2),0)/(returns.length||1));
+        let sharpe = std===0?0:(avg/std)*Math.sqrt(252);
+        document.getElementById("sharpeRatio").innerText = sharpe.toFixed(2);
+
+        const curve = equityCurve();
+        if(equityChart) equityChart.destroy();
+        const ctx = document.getElementById('equityChart').getContext('2d');
+        equityChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: curve.map(c=>c.fecha), datasets: [{ label: 'Equity', data: curve.map(c=>c.equity), borderColor: '#38BDF8', fill: false, tension: 0.2 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#CBD5E1' } } } }
+        });
+    }
+
+    function renderizarTabla() {
+        let tbody = document.getElementById("tbodyOperaciones");
+        let filtradas = currentFilterDate ? operaciones.filter(op=>op.fecha===currentFilterDate) : operaciones;
+        if(filtradas.length===0) { tbody.innerHTML='<tr><td colspan="7">✨ Sin trades ✨</td></tr>'; return; }
+        let html = "";
+        for(let op of filtradas) {
+            let pnl = calcularPnL(op);
+            let clase = pnl>=0?"profit":"loss";
+            html += `<tr>
+                        <td>${op.fecha}</td>
+                        <td>${op.activo}</td>
+                        <td>${op.direccion==="LONG"?"📈 LONG":"📉 SHORT"}</td>
+                        <td>${op.precioEntrada}</td>
+                        <td>${op.precioSalida}</td>
+                        <td class="${clase}">${pnl>=0?"+":""}$${pnl.toFixed(2)}</td>
+                        <td><button class="edit-btn" data-id="${op.id}">✏️</button> <button class="delete-btn" data-id="${op.id}">🗑️</button></td>
+                    </tr>`;
+        }
+        tbody.innerHTML = html;
+        document.querySelectorAll(".edit-btn").forEach(btn=>btn.addEventListener("click",()=>editarOp(parseInt(btn.dataset.id))));
+        document.querySelectorAll(".delete-btn").forEach(btn=>btn.addEventListener("click",()=>eliminarOp(parseInt(btn.dataset.id))));
+    }
+
+    function editarOp(id) {
+        let op = operaciones.find(o=>o.id===id);
+        if(!op) return;
+        document.getElementById("fecha").value = op.fecha;
+        document.getElementById("activo").value = op.activo;
+        document.getElementById("tipoActivo").value = op.tipoActivo;
+        document.getElementById("direccion").value = op.direccion;
+        document.getElementById("precioEntrada").value = op.precioEntrada;
+        document.getElementById("precioSalida").value = op.precioSalida;
+        document.getElementById("tamano").value = op.tamano;
+        document.getElementById("comision").value = op.comision;
+        document.getElementById("notas").value = op.notas||"";
+        if(confirm("Editar: se borrará la original y guardarás una nueva.")) eliminarOp(id);
+    }
+
+    function eliminarOp(id) {
+        if(confirm("¿Eliminar trade?")) {
+            operaciones = operaciones.filter(o=>o.id!==id);
+            guardar();
+            renderizarTodo();
+            actualizarCalendario();
+            showToast("Trade eliminado");
+        }
+    }
+
+    function agregar() {
+        let fecha = document.getElementById("fecha").value;
+        let activo = document.getElementById("activo").value.trim();
+        let tipoActivo = document.getElementById("tipoActivo").value;
+        let direccion = document.getElementById("direccion").value;
+        let precioEntrada = parseFloat(document.getElementById("precioEntrada").value);
+        let precioSalida = parseFloat(document.getElementById("precioSalida").value);
+        let tamano = parseFloat(document.getElementById("tamano").value);
+        let comision = parseFloat(document.getElementById("comision").value)||0;
+        let notas = document.getElementById("notas").value.trim();
+        if(!fecha || !activo || isNaN(precioEntrada) || isNaN(precioSalida) || isNaN(tamano) || tamano===0) {
+            showToast("❌ Completa todos los campos", true); return;
+        }
+        let nueva = { id: Date.now(), fecha, activo, tipoActivo, direccion, precioEntrada, precioSalida, tamano, comision, notas };
+        operaciones.push(nueva);
+        guardar();
+        renderizarTodo();
+        actualizarCalendario();
+        limpiarForm();
+        showToast("✓ Trade guardado");
+    }
+
+    function limpiarForm() {
+        document.getElementById("fecha").value = new Date().toISOString().slice(0,10);
+        document.getElementById("precioEntrada").value = "";
+        document.getElementById("precioSalida").value = "";
+        document.getElementById("tamano").value = "0.1";
+        document.getElementById("comision").value = "0";
+        document.getElementById("notas").value = "";
+    }
+
+    function exportarCSV() {
+        if(operaciones.length===0) { showToast("Sin datos", true); return; }
+        let rows = [["Fecha","Activo","Direccion","Entrada","Salida","Tamaño","PnL"]];
+        for(let op of operaciones) rows.push([op.fecha, op.activo, op.direccion, op.precioEntrada, op.precioSalida, op.tamano, calcularPnL(op)]);
+        let csv = rows.map(r=>r.join(",")).join("\n");
+        let blob = new Blob([csv], {type:"text/csv"});
+        let a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `trades_${new Date().toISOString().slice(0,19)}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast("Exportado");
+    }
+
+    function importarCSV(file) {
+        let reader = new FileReader();
+        reader.onload = e => {
+            let lines = e.target.result.split("\n").slice(1);
+            let nuevas = [];
+            for(let line of lines) {
+                let parts = line.split(",");
+                if(parts.length<6) continue;
+                let [fecha, activo, direccion, entrada, salida, tamano] = parts;
+                if(!fecha || !activo) continue;
+                let nueva = { id: Date.now()+Math.random(), fecha: fecha.trim(), activo: activo.trim(), tipoActivo: "forex", direccion: direccion.trim(), precioEntrada: parseFloat(entrada), precioSalida: parseFloat(salida), tamano: parseFloat(tamano), comision: 0, notas: "" };
+                if(isNaN(nueva.precioEntrada)) continue;
+                nuevas.push(nueva);
+            }
+            if(nuevas.length) { operaciones.push(...nuevas); guardar(); renderizarTodo(); actualizarCalendario(); showToast(`Importadas ${nuevas.length}`); }
+            else showToast("CSV inválido", true);
+        };
+        reader.readAsText(file);
+    }
+
+    function resetTodo() {
+        if(confirm("Borrar todos los trades?")) { operaciones = []; guardar(); renderizarTodo(); actualizarCalendario(); showToast("Todo borrado"); }
+    }
+
+    function actualizarCalendario() {
+        let eventos = operaciones.map(op => {
+            let pnl = calcularPnL(op);
+            return { title: `${op.activo} ${pnl>=0?'+':''}$${pnl.toFixed(0)}`, start: op.fecha, allDay: true, color: pnl>=0?"#10B981":"#F97316" };
+        });
+        if(calendar) { calendar.removeAllEvents(); calendar.addEventSource(eventos); }
+        else {
+            let calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth', locale: 'es', events: eventos,
+                dateClick: function(info) { currentFilterDate = info.dateStr; renderizarTabla(); showToast(`Filtrando ${currentFilterDate}`); },
+                headerToolbar: { left: 'prev,next', center: 'title', right: '' }, height: 'auto'
+            });
+            calendar.render();
+        }
+    }
+
+    function limpiarFiltro() { currentFilterDate = null; renderizarTabla(); showToast("Todos los trades"); }
+
+    function toggleTheme() {
+        let body = document.body;
+        if(body.style.background === 'rgb(10, 15, 31)') {
+            body.style.background = '#E2E8F0';
+            body.style.color = '#0F172A';
+            document.querySelectorAll('.card').forEach(c=>c.style.background='rgba(255,255,255,0.9)');
+        } else {
+            body.style.background = '#0A0F1F';
+            body.style.color = '#E2E8F0';
+            document.querySelectorAll('.card').forEach(c=>c.style.background='rgba(17,24,39,0.9)');
+        }
+    }
+
+    function renderizarTodo() { renderizarTabla(); actualizarStats(); }
+
+    window.onload = () => {
+        cargar();
+        document.getElementById("fecha").value = new Date().toISOString().slice(0,10);
+        document.getElementById("btnAgregar").onclick = agregar;
+        document.getElementById("btnExportarCSV").onclick = exportarCSV;
+        document.getElementById("btnBorrarTodo").onclick = resetTodo;
+        document.getElementById("darkModeToggle").onclick = toggleTheme;
+        document.getElementById("importCsvBtn").onclick = () => document.getElementById("csvFileInput").click();
+        document.getElementById("csvFileInput").onchange = (e) => { if(e.target.files[0]) importarCSV(e.target.files[0]); e.target.value = ''; };
+        document.getElementById("clearFilterBtn").onclick = limpiarFiltro;
+    };
+</script>
+</body>
+</html>
